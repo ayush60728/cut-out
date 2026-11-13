@@ -1,0 +1,414 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Cut-Out — Local AI Background Remover</title>
+  <link rel="stylesheet" href="style.css">
+  <link rel="icon" type="image/svg+xml" href="favicon.svg?v=2">
+  <link rel="shortcut icon" href="favicon.svg?v=2">
+</head>
+<body data-theme="dark">
+  <!-- Top App Navigation -->
+  <header class="app-header">
+    <div class="header-left">
+      <div class="logo">
+        <svg class="logo-icon" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <defs>
+            <linearGradient id="headerLogoGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+              <stop offset="0%" stop-color="#38bdf8"/>
+              <stop offset="35%" stop-color="#4f46e5"/>
+              <stop offset="100%" stop-color="#7c3aed"/>
+            </linearGradient>
+            <linearGradient id="headerLogoBlade" x1="0%" y1="100%" x2="100%" y2="0%">
+              <stop offset="0%" stop-color="#ffffff"/>
+              <stop offset="60%" stop-color="#e0e7ff"/>
+              <stop offset="100%" stop-color="#cbd5e1"/>
+            </linearGradient>
+            <filter id="headerStarGlow" x="-50%" y="-50%" width="200%" height="200%">
+              <feGaussianBlur stdDeviation="0.6" result="blur"/>
+              <feMerge>
+                <feMergeNode in="blur"/>
+                <feMergeNode in="SourceGraphic"/>
+              </feMerge>
+            </filter>
+          </defs>
+          <rect x="1" y="1" width="30" height="30" rx="7.5" fill="url(#headerLogoGrad)"/>
+          <rect x="1" y="1" width="30" height="30" rx="7.5" stroke="rgba(255,255,255,0.3)" stroke-width="1"/>
+          <rect x="4" y="4" width="3.5" height="3.5" fill="rgba(255,255,255,0.15)" rx="0.75"/>
+          <rect x="7.5" y="7.5" width="3.5" height="3.5" fill="rgba(255,255,255,0.15)" rx="0.75"/>
+          <rect x="4" y="11" width="3.5" height="3.5" fill="rgba(255,255,255,0.15)" rx="0.75"/>
+          <path d="M5 18 C5 10, 10 5, 18 5" stroke="rgba(255,255,255,0.55)" stroke-width="1.3" stroke-dasharray="2 2" stroke-linecap="round"/>
+          <circle cx="10.5" cy="22" r="3" stroke="url(#headerLogoBlade)" stroke-width="2.2"/>
+          <circle cx="21.5" cy="22" r="3" stroke="url(#headerLogoBlade)" stroke-width="2.2"/>
+          <path d="M12.5 19.5 L22.5 8" stroke="url(#headerLogoBlade)" stroke-width="2.3" stroke-linecap="round"/>
+          <path d="M19.5 19.5 L9.5 8" stroke="url(#headerLogoBlade)" stroke-width="2.3" stroke-linecap="round"/>
+          <circle cx="16" cy="14" r="1.8" fill="#4f46e5" stroke="#ffffff" stroke-width="1.2"/>
+          <path d="M24.5 4.5 L25.5 7 L28 8 L25.5 9 L24.5 11.5 L23.5 9 L21 8 L23.5 7 Z" fill="#fde047" filter="url(#headerStarGlow)"/>
+          <circle cx="24.5" cy="8" r="0.8" fill="#ffffff"/>
+        </svg>
+        <span class="logo-title">Cut-Out</span>
+      </div>
+      <div id="modelBadge" class="badge" title="AI Model status & commercial license">
+        <span class="badge-dot"></span>
+        <span id="modelBadgeText">BiRefNet</span>
+      </div>
+    </div>
+
+    <div class="header-center" id="editorControlsNav" style="display: none;">
+      <!-- View Mode Toggle: Grid vs Focus -->
+      <div class="btn-group" id="viewModeGroup" title="Switch View Mode">
+        <button id="btnViewGrid" class="icon-btn active" title="Draggable Boxes View (All Canvases)">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+        </button>
+        <button id="btnArrangeBoxes" class="icon-btn" title="Auto-Tile / Arrange All Boxes Neatly">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="18" rx="1"/><rect x="14" y="3" width="7" height="18" rx="1"/></svg>
+        </button>
+        <button id="btnViewSingle" class="icon-btn" title="Focus Single Canvas">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/></svg>
+        </button>
+      </div>
+
+      <div class="divider"></div>
+
+      <!-- Undo / Redo -->
+      <div class="btn-group">
+        <button id="btnUndo" class="icon-btn" title="Undo (Ctrl+Z)" disabled>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 14L4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 5.5 5.5v0a5.5 5.5 0 0 1-5.5 5.5H11"/></svg>
+        </button>
+        <button id="btnRedo" class="icon-btn" title="Redo (Ctrl+Shift+Z)" disabled>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 14l5-5-5-5"/><path d="M20 9H9.5A5.5 5.5 0 0 0 4 14.5v0A5.5 5.5 0 0 0 9.5 20H13"/></svg>
+        </button>
+      </div>
+
+      <div class="divider"></div>
+
+      <!-- Compare Button -->
+      <button id="btnCompare" class="pill-btn" title="Hold or press [C] to view original image">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+        <span>Hold to Compare</span>
+      </button>
+
+      <div class="divider"></div>
+
+      <!-- Zoom Controls -->
+      <div class="btn-group" id="zoomGroup">
+        <button id="btnZoomOut" class="icon-btn" title="Zoom Out (-)">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/><line x1="8" y1="11" x2="14" y2="11"/></svg>
+        </button>
+        <span id="zoomLevelText" class="zoom-text">100%</span>
+        <button id="btnZoomIn" class="icon-btn" title="Zoom In (+)">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/><line x1="11" y1="8" x2="11" y2="14"/><line x1="8" y1="11" x2="14" y2="11"/></svg>
+        </button>
+        <button id="btnZoomFit" class="icon-btn" title="Fit to Screen (0)">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/></svg>
+        </button>
+      </div>
+
+      <div class="divider"></div>
+
+      <!-- Background Preview Toggles -->
+      <div class="bg-preview-selector" title="Preview background">
+        <button class="bg-opt active" data-bg="checkerboard" title="Checkerboard (Transparent)"></button>
+        <button class="bg-opt" data-bg="white" title="White Background"></button>
+        <button class="bg-opt" data-bg="black" title="Black Background"></button>
+        <div class="color-picker-wrapper" title="Custom Color">
+          <input type="color" id="customBgColor" value="#3b82f6">
+        </div>
+      </div>
+    </div>
+
+    <div class="header-right">
+      <button id="btnTheme" class="icon-btn" title="Toggle Light / Dark theme">
+        <svg id="themeIcon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <!-- Moon icon for dark mode -->
+          <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+        </svg>
+      </button>
+
+      <button id="btnAddSlide" class="outline-btn" style="display: none;" title="Add more images as slides">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+        <span>Add Slide</span>
+      </button>
+      <input type="file" id="addMoreInput" accept="image/png, image/jpeg, image/webp" multiple hidden>
+
+      <button id="btnNewImage" class="outline-btn" style="display: none;" title="Start fresh with new images">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+        <span>Reset</span>
+      </button>
+
+      <div class="download-wrapper" id="downloadWrapper" style="display: none;">
+        <button id="btnDownload" class="primary-btn" title="Choose download resolution">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+          <span id="downloadBtnText">Download</span>
+          <svg class="chevron-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>
+        </button>
+
+        <!-- Multiple Resolutions Selection Menu -->
+        <div id="downloadMenu" class="download-menu" style="display: none;">
+          <!-- View 1: Quick Presets View -->
+          <div id="downloadPresetsView" class="download-view">
+            <div class="download-menu-header">
+              <span id="downloadMenuTitle">Select Resolution</span>
+              <span id="downloadSlideInfo" class="download-slide-info">#1</span>
+            </div>
+            <div id="resolutionOptions" class="resolution-options">
+              <!-- Dynamically populated preset buttons -->
+            </div>
+            <button id="btnOpenCustomRes" class="custom-res-trigger-btn" type="button">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:14px;height:14px;">
+                <circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+              </svg>
+              <span>Custom Resolution & Upscale</span>
+            </button>
+            <div id="batchDownloadContainer"></div>
+          </div>
+
+          <!-- View 2: Custom Resolution & Upscale View -->
+          <div id="downloadCustomView" class="download-view" style="display: none;">
+            <div class="download-menu-header">
+              <button id="btnBackToPresets" class="btn-back-presets" type="button" title="Back to Presets">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="width:13px;height:13px;"><polyline points="15 18 9 12 15 6"/></svg>
+                <span>Back</span>
+              </button>
+              <span class="custom-res-title">Custom Resolution</span>
+            </div>
+
+            <div class="custom-res-body">
+              <!-- Quick Scale Preset Multipliers -->
+              <div class="scale-pills-row" title="Quick Multipliers">
+                <button type="button" class="scale-pill" data-scale="0.5">0.5×</button>
+                <button type="button" class="scale-pill active" data-scale="1">1×</button>
+                <button type="button" class="scale-pill" data-scale="1.5">1.5×</button>
+                <button type="button" class="scale-pill" data-scale="2">2× ✨</button>
+                <button type="button" class="scale-pill" data-scale="4">4× ✨</button>
+              </div>
+
+              <!-- Width x Height input with aspect lock -->
+              <div class="custom-res-inputs">
+                <div class="res-input-field">
+                  <label for="customResWidth">Width</label>
+                  <div class="input-with-unit">
+                    <input type="number" id="customResWidth" min="16" max="8192" step="1">
+                    <span class="unit-tag">px</span>
+                  </div>
+                </div>
+
+                <button type="button" id="btnToggleAspectLock" class="aspect-lock-btn active" title="Lock Aspect Ratio (Maintains proportional width & height)">
+                  <svg id="aspectLockIcon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:14px;height:14px;">
+                    <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
+                    <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+                  </svg>
+                </button>
+
+                <div class="res-input-field">
+                  <label for="customResHeight">Height</label>
+                  <div class="input-with-unit">
+                    <input type="number" id="customResHeight" min="16" max="8192" step="1">
+                    <span class="unit-tag">px</span>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Quality / Detail Upscale Enhancement Toggle -->
+              <div class="custom-option-group">
+                <label class="toggle-control custom-enhance-label" title="Applies Lanczos sinc resampling, adaptive detail sharpening, and alpha edge contrast reconstruction">
+                  <input type="checkbox" id="chkCustomEnhance" checked>
+                  <span class="toggle-label">
+                    <svg class="magic-sparkle" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2L14.39 8.26L21 9.27L16 13.14L17.45 19.73L12 16.27L6.55 19.73L8 13.14L3 9.27L9.61 8.26L12 2Z"/></svg>
+                    <span>AI Detail Enhancement & Upscale</span>
+                  </span>
+                </label>
+                <div class="custom-opt-note" id="upscaleNote">Upscaling ready: Lanczos sinc + edge contrast active.</div>
+              </div>
+
+              <!-- Format Selector: PNG vs JPG vs WebP -->
+              <div class="custom-format-row">
+                <label>Format</label>
+                <div class="format-chips" id="formatChips">
+                  <button type="button" class="format-chip active" data-format="png">PNG (Transparent)</button>
+                  <button type="button" class="format-chip" data-format="webp">WebP</button>
+                  <button type="button" class="format-chip" data-format="jpg">JPG</button>
+                </div>
+              </div>
+
+              <!-- Download Button -->
+              <button type="button" id="btnDownloadCustom" class="primary-btn btn-download-custom">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:14px;height:14px;">
+                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>
+                </svg>
+                <span id="btnDownloadCustomText">Download Cutout</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <!-- SCREEN 1: DROP ZONE (Initial Screen) -->
+  <main id="uploadScreen" class="upload-screen">
+    <div id="dropZone" class="drop-zone">
+      <div class="drop-zone-content">
+        <div class="drop-icon-wrapper">
+          <svg class="upload-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+            <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
+            <circle cx="8.5" cy="8.5" r="1.5"/>
+            <polyline points="21 15 16 10 5 21"/>
+          </svg>
+        </div>
+        <h2 class="drop-title">Drop an image or click to upload</h2>
+        <p class="drop-subtitle">PNG, JPG, WebP supported &bull; Paste from clipboard also works (Ctrl+V)</p>
+        <div class="drop-specs">
+          <span class="spec-tag">100% Local AI</span>
+          <span class="spec-tag">No Watermark</span>
+          <span class="spec-tag">Full Original Resolution</span>
+        </div>
+      </div>
+      <input type="file" id="fileInput" accept="image/png, image/jpeg, image/webp" multiple hidden>
+    </div>
+
+    <!-- Processing Overlay / Loading State -->
+    <div id="loadingOverlay" class="loading-overlay" style="display: none;">
+      <div class="spinner-container">
+        <div class="pulse-ring"></div>
+        <div class="spinner"></div>
+      </div>
+      <h3 id="loadingText" class="loading-title">Removing background...</h3>
+      <p id="loadingSubtext" class="loading-subtitle">Processing with high-resolution BiRefNet AI model</p>
+    </div>
+  </main>
+
+  <!-- SCREEN 2: EDITOR VIEW -->
+  <main id="editorScreen" class="editor-screen" style="display: none;">
+    <!-- Floating Tool Settings Bar -->
+    <aside class="tool-toolbar">
+      <div class="tool-mode-group">
+        <button id="toolRestore" class="tool-btn" data-tool="restore" title="Restore Brush: Paint back cut-out parts (R)">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M12 20h9"/>
+            <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/>
+          </svg>
+          <span>Restore</span>
+        </button>
+
+        <button id="toolErase" class="tool-btn" data-tool="erase" title="Erase Brush: Standard freehand eraser (E)">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M20 20H7L3 16C2 15 2 13 3 12L13 2L22 11L20 20Z"/>
+            <path d="M18 13L10 5"/>
+          </svg>
+          <span>Erase</span>
+        </button>
+
+        <button id="toolMagic" class="tool-btn active" data-tool="magic" title="Magic Brush: Smart brush that only removes similar sampled colors (M)">
+          <svg class="magic-sparkle" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M12 2L14.39 8.26L21 9.27L16 13.14L17.45 19.73L12 16.27L6.55 19.73L8 13.14L3 9.27L9.61 8.26L12 2Z"/>
+          </svg>
+          <span>Magic</span>
+        </button>
+
+        <button id="toolAutoColor" class="tool-btn" data-tool="auto" title="Auto Color Remove: Click any color on the image to remove that color across the whole image (A)">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/>
+          </svg>
+          <span>Auto</span>
+        </button>
+      </div>
+
+      <!-- AI Model Cutout Button -->
+      <button id="btnRunAi" class="pill-btn run-ai-btn" title="Run AI model (U-2-Net / BiRefNet) to automatically remove background">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:13px;height:13px;">
+          <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>
+        </svg>
+        <span>AI Cutout</span>
+      </button>
+
+      <!-- Ghost Guide for Restore Mode (Shows original image with low opacity) -->
+      <div class="tool-slider-group" id="ghostOpacityGroup" style="display: none;">
+        <div class="slider-label-row">
+          <span>Ghost Guide</span>
+          <span id="ghostOpacityVal">35%</span>
+        </div>
+        <input type="range" id="ghostOpacity" min="10" max="80" value="35" class="tool-slider" title="Opacity of original image in erased areas to guide restoration">
+      </div>
+
+      <div class="tool-divider"></div>
+
+      <!-- Brush Size Slider -->
+      <div class="tool-slider-group">
+        <div class="slider-label-row">
+          <span>Size</span>
+          <span id="brushSizeVal">40px</span>
+        </div>
+        <input type="range" id="brushSize" min="4" max="250" value="40" class="tool-slider">
+      </div>
+
+      <!-- Edge Softness Slider -->
+      <div class="tool-slider-group">
+        <div class="slider-label-row">
+          <span>Softness</span>
+          <span id="brushSoftnessVal">25%</span>
+        </div>
+        <input type="range" id="brushSoftness" min="0" max="100" value="25" class="tool-slider">
+      </div>
+
+      <!-- Magic Tolerance Slider (Active when Magic is ON) -->
+      <div class="tool-slider-group" id="magicToleranceGroup">
+        <div class="slider-label-row">
+          <span>Tolerance</span>
+          <span id="magicToleranceVal">35</span>
+        </div>
+        <input type="range" id="magicTolerance" min="5" max="100" value="35" class="tool-slider">
+      </div>
+    </aside>
+
+    <!-- Canvas Workspace Viewport -->
+    <div id="canvasViewport" class="canvas-viewport bg-checkerboard">
+      <!-- 1. Focused Single Canvas Stage (Focus View) -->
+      <div id="canvasStage" class="canvas-stage" style="display: none;">
+        <canvas id="viewCanvas"></canvas>
+      </div>
+
+      <!-- 2. Multi-Canvas Grid View (Simultaneous Canvases) -->
+      <div id="multiCanvasGrid" class="multi-canvas-grid">
+        <!-- Dynamically populated slide cards -->
+      </div>
+
+      <!-- Virtual Brush Cursor -->
+      <div id="brushCursor" class="brush-cursor">
+        <div class="brush-cursor-inner"></div>
+      </div>
+    </div>
+
+    <!-- Slide Bar (Filmstrip / Carousel) -->
+    <div id="slideBar" class="slide-bar" style="display: none;">
+      <div id="slideList" class="slide-list"></div>
+      <button id="btnAddSlideBar" class="slide-add-pill" title="Add another image slide">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+        <span>+ Add</span>
+      </button>
+    </div>
+
+    <!-- Info Toast / Hint Footer -->
+    <div class="viewport-hints" id="viewportHints">
+      <span>Click any canvas &bull; Ctrl+Wheel / Ctrl+± to zoom &bull; Shift+drag straight line &bull; Shift+resize aspect lock &bull; Ctrl+S export</span>
+    </div>
+  </main>
+
+  <!-- Model License Info Modal -->
+  <div id="infoModal" class="modal-backdrop" style="display: none;">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h3 id="modalTitle">Model & License Information</h3>
+        <button id="modalClose" class="icon-btn">&times;</button>
+      </div>
+      <div class="modal-body" id="modalContent">
+        <!-- Dynamically populated -->
+      </div>
+    </div>
+  </div>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

@@ -1,0 +1,28 @@
+# Virtual environment
+.venv/
+venv/
+ENV/
+
+# Python cache
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+
+# Models cache & downloads
+models/*.onnx
+models/*.pt
+models/*.pth
+.u2net/
+
+# Temporary / Exported images
+test_ai_*.png
+exported_via_curl.png
+cutout_cloudflare_pages.zip
+
+# OS / Editor
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+.env
