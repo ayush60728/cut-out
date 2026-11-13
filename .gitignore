@@ -10,15 +10,15 @@ __pycache__/
 *.so
 
 # Models cache & downloads
-models/*.onnx
-models/*.pt
-models/*.pth
+models/
 .u2net/
 
-# Temporary / Exported images
-test_ai_*.png
-exported_via_curl.png
-cutout_cloudflare_pages.zip
+# Tests & samples
+tests/
+sample_*.png
+test_*.png
+*.zip
+exported_*.png
 
 # OS / Editor
 .DS_Store
